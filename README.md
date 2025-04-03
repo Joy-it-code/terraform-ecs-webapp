@@ -164,7 +164,7 @@ git push -u origin main
 ```
 
  ## Set up Docker
- Create an Ec2 Instance and install docker:
+ Create an Ec2 Instance and install docker
 
 ## Update the package manager and install Docker:
 ```
@@ -189,10 +189,6 @@ sudo usermod -aG docker $USER
 ```
 docker --version
 ```
-
- 
-
-
 
 + **Test it locally:**
 ```

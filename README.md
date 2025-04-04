@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This project demonstrates how to **deploy a Dockerized web application** on **AWS** using **Terraform, Amazon ECR, and ECS.** The web app is built using **Node.js & Express.js,** containerized with **Docker**, and managed through **Terraform** for infrastructure provisioning.
+This project demonstrates how to deploy a Dockerized web application on AWS using Terraform, Amazon ECR, and ECS. The web app is built using Node.js & Express.js, containerized with Docker, and managed through Terraform for infrastructure provisioning.
 ---
 
 ## Project Structure
@@ -164,7 +164,7 @@ git push -u origin main
 ```
 
  ## Set up Docker
- Create an Ec2 Instance and install docker
+ Create an EC2 Instance, clone your repository into it and install docker:
 
 ## Update the package manager and install Docker:
 ```
@@ -179,24 +179,182 @@ sudo service docker start
 sudo systemctl enable docker
 sudo systemctl status docker
 ```
+![](./img/3a.docker.status.png)
 
 ## Add the current user to the Docker group
 ```
 sudo usermod -aG docker $USER
+newgrp docker
 ```
 
 ## Verify the installation
 ```
 docker --version
 ```
+![](./img/3b.docker.version.png)
 
-+ **Test it locally:**
+## Log in to Docker Hub from EC2
+```
+docker login
+```
+Enter your Docker Hub username and password when prompted.
+
+If successful, you'll see:
+```
+Login Succeeded
+```
+
++ **Build and List the Docker Image on EC2 :**
 ```
 cd app
-docker build -t my-webapp .
-docker run -p 3000:3000 my-webapp
+docker build -t joanna2/my-webapp .
+docker images
+```
+![](./img/3c.docker.build.png)
+
+## Test the Image Locally
+Run it directly:
+```
+docker run -d -p 5050:3000 joanna2/my-webapp
+curl http://localhost:5050
+```
+**Open http://localhost:5050 in your browser.**
+
+## Push the Image to Docker Hub
+```
+docker push joanna2/my-webapp
+```
+![](./img/3d.docker.run.png)
+
+
+## Step 3: Write Terraform Scripts
+
+## Create the ECR Module (modules/ecr/main.tf)
+```
+nano modules/ecr/main.tf
 ```
 
-Open http://localhost:3000 in your browser.
+This will create an Amazon ECR repository.
+```
+resource "aws_ecr_repository" "my_ecr_repo" {
+  name                 = "my-webapp-repo"
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
+output "repository_url" {
+  value = aws_ecr_repository.my_ecr_repo.repository_url
+}
+```
+
+**Inside modules/ecr/variables.tf**
+```
+nano variable.tf
+```
+**Paste**
+```
+variable "repository_name" {
+  description = "The name of the ECR repository"
+  type        = string
+}
+```
+
+## Create the ECS Module (modules/ecs/main.tf)
+```
+nano modules/ecs/main.tf
+```
+
+This will create an ECS cluster and deploy the web app.
+```
+resource "aws_ecs_cluster" "ecs_cluster" {
+  name = "my-ecs-cluster"
+}
+
+resource "aws_ecs_task_definition" "ecs_task" {
+  family                   = var.service_name
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+
+  container_definitions = jsonencode([
+    {
+      name      = "my-webapp-service",
+      image     = var.ecr_repository_url,
+      cpu       = 256,
+      memory    = 512,
+      essential = true,
+      portMappings = [
+        {
+          containerPort = var.container_port,
+          hostPort      = var.container_port
+        }
+      ]
+    }
+  ])
+}
+
+output "ecs_cluster_name" {
+  value = aws_ecs_cluster.ecs_cluster.name
+}
+```
 
 
+## Create a variables.tf file inside modules/ecs/ for ECR repository URL input:
+```
+variable "ecr_repository_url" {}
+variable "cluster_name" {}
+variable "service_name" {}
+variable "container_port" {}
+```
+
+## Step 4: Create the Main Terraform Configuration (main.tf)
+```
+nano main.tf
+```
+
+This ties everything together.
+```
+provider "aws" {
+  region = "us-east-1"  
+}
+
+module "ecr" {
+  source          = "./modules/ecr"
+  repository_name = "my-webapp-repo"  
+}
+
+module "ecs" {
+  source             = "./modules/ecs"
+  ecr_repository_url = module.ecr.repository_url  
+  cluster_name       = "my-ecs-cluster"  
+  service_name       = "my-webapp-service" 
+  container_port     = 3000 
+}
+```
+
+## Step 5: Deploy the Infrastructure
+Now, let’s run Terraform to create AWS resources.
+
+Initialize Terraform:
+```
+terraform init
+``` 
+
+**Validate and Plan Terraform Deployment**
+Before applying the changes, check if the configuration is correct:
+```
+terraform validate
+```
+
+**Run the plan command to see what Terraform will create:**
+```
+terraform plan
+```
+
+Apply the Terraform Configuration
+Run:
+```
+terraform apply
+```

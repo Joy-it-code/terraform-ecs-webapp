@@ -3,7 +3,7 @@
 ## Project Overview
 
 This project demonstrates how to deploy a Dockerized web application on AWS using Terraform, Amazon ECR, and ECS. The web app is built using Node.js & Express.js, containerized with Docker, and managed through Terraform for infrastructure provisioning.
----
+
 
 ## Project Structure
 

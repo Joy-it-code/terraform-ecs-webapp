@@ -554,6 +554,15 @@ This project demonstrated how to build and deploy a Dockerized web application u
 
 ----
 
+## Destroying Resources
+
+To delete all resources created by Terraform:
+```
+terraform destroy
+```
+Type yes when prompted.
+
+
 ## Push Changes to GitHub
 ```
 git add .
